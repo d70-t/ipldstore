@@ -30,6 +30,14 @@ class ContentAddressableStore(ABC):
         else:
             raise ValueError(f"can't decode CID's codec '{cid.codec.name}'")
 
+    def __contains__(self, cid: CID) -> bool:
+        try:
+            self.get_raw(cid)
+        except KeyError:
+            return False
+        else:
+            return True
+
     @abstractmethod
     def put_raw(self,
                 raw_value: bytes,

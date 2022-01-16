@@ -104,7 +104,7 @@ class ContentAddressableStore(ABC):
                     bytes_written += self._to_car(child, stream, already_written)
         return bytes_written
 
-    def import_car(self, stream_or_bytes: Union[BufferedIOBase, bytes]) -> None:
+    def import_car(self, stream_or_bytes: Union[BufferedIOBase, bytes]) -> list[CID]:
         validate(stream_or_bytes, Union[BufferedIOBase, bytes])
         if isinstance(stream_or_bytes, bytes):
             stream: BufferedIOBase = BytesIO(stream_or_bytes)
@@ -120,6 +120,9 @@ class ContentAddressableStore(ABC):
                 # stream has likely been consumed entirely
                 break
             data = stream.read(block_size)
+            # as the size of the CID is variable but not explicitly given in
+            # the CAR format, we need to partially decode each CID to determine
+            # its size and the location of the payload data
             if data[0] == 0x12 and data[1] == 0x20:
                 # this is CIDv0
                 cid_version = 0
@@ -146,6 +149,7 @@ class ContentAddressableStore(ABC):
 
             self.put_raw(bytes(data), cid.codec)
         
+        return header["roots"]
 
 
 class MappingCAStore(ContentAddressableStore):

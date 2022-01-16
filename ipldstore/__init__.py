@@ -1,4 +1,5 @@
 from collections.abc import MutableMapping
+from typing import Optional
 import json
 
 from multiformats import varint, multihash, CID
@@ -6,6 +7,8 @@ import dag_cbor
 from numcodecs.compat import ensure_bytes
 
 import cbor2
+
+from .contentstore import ContentAddressableStore, MappingCAStore
 
 class InlineCodec:
     def __init__(self, decoder, encoder):
@@ -21,11 +24,9 @@ inline_objects = {
 
 
 class IPLDStore(MutableMapping):
-    def __init__(self, default_hash="sha2-256", default_base="base32", sep="/"):
+    def __init__(self, castore: Optional[ContentAddressableStore] = None, sep="/"):
         self._mapping = {}
-        self._objects = {}
-        self.default_hash = default_hash
-        self.default_base = default_base
+        self._store = castore or MappingCAStore()
         self.sep = sep
         self.root_cid = None
     
@@ -34,20 +35,18 @@ class IPLDStore(MutableMapping):
         try:
             inline_codec = inline_objects[key_parts[-1]]
         except KeyError:
-            return self._objects[self._mapping[key]]
+            return self._store.get(self._mapping[key])
         else:
             return inline_codec.encoder(self._mapping[key])
 
     def __setitem__(self, key, value):
         value = ensure_bytes(value)
         key_parts = key.split(self.sep)
-        mh = multihash.digest(value, self.default_hash)
-        
+
         try:
             inline_codec = inline_objects[key_parts[-1]]
         except KeyError:
-            cid = CID(self.default_base, 1, "raw", mh)
-            self._objects[cid] = value 
+            cid = self._store.put(value)
             self.root_cid = None
             self._mapping[key] = cid
         else:
@@ -64,31 +63,25 @@ class IPLDStore(MutableMapping):
         return len(self._mapping)
 
     def freeze(self):
+        """
+            Store current version and return the corresponding root cid.
+        """
         if self.root_cid is None:
-            root_data = dag_cbor.encode(self._mapping)
-            mh = multihash.digest(root_data, self.default_hash)
-            root_cid = CID(self.default_base, 1, "dag-cbor", mh)
-            self._objects[root_cid] = root_data
-            self.root_cid = root_cid
-            return root_cid
-        else:
-            return self.root_cid
+            self.root_cid = self._store.put(self._mapping)
+        return self.root_cid
 
+    def to_car(self, stream=None):
+        return self._store.to_car(self.freeze(), stream)
 
-    def iter_objects(self):
-        self.freeze()
-        return self._objects.items()
+    def import_car(self, stream):
+        roots = self._store.import_car(stream)
+        if len(roots) != 1:
+            raise ValueError(f"CAR must have a single root, the given CAR has {len(roots)} roots!")
+        self.root_cid = roots[0]
+        self._mapping = self._store.get(self.root_cid)
 
-    def iter_car(self):
-        header = dag_cbor.encode({"version": 1, "roots": [self.freeze()]})
-        print(cbor2.loads(header))
-        yield varint.encode(len(header))
-        yield header
-        for cid, data in self._objects.items():
-            cid_bytes = bytes(cid)
-            yield varint.encode(len(cid_bytes) + len(data))
-            yield cid_bytes
-            yield data
-    
-    def to_car(self):
-        return b''.join(self.iter_car())
+    @classmethod
+    def from_car(cls, stream):
+        instance = cls()
+        instance.import_car(stream)
+        return instance

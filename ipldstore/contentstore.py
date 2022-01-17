@@ -7,6 +7,8 @@ import dag_cbor
 from dag_cbor.encoding import EncodableType as DagCborEncodable
 from typing_validation import validate
 
+import requests
+
 
 ValueType = Union[bytes, DagCborEncodable]
 
@@ -193,6 +195,44 @@ class MappingCAStore(ContentAddressableStore):
         key = cid.digest
         self._mapping[key] = raw_value
         return cid
+
+class IPFSStore(ContentAddressableStore):
+    def __init__(self,
+                 host: str,
+                 default_hash: Union[str, int, multicodec.Multicodec, multihash.Multihash] = "sha2-256",
+                 ):
+        validate(host, str)
+        validate(default_hash, Union[str, int, multicodec.Multicodec, multihash.Multihash])
+
+        self._host = host
+
+        if isinstance(default_hash, multihash.Multihash):
+            self._default_hash = default_hash
+        else:
+            self._default_hash = multihash.get(default_hash)
+
+    def get_raw(self, cid: CID) -> bytes:
+        validate(cid, CID)
+        res = requests.post(self._host + "/api/v0/block/get", params={"arg": str(cid)})
+        res.raise_for_status()
+        return res.content
+
+    def put_raw(self,
+                raw_value: bytes,
+                codec: Union[str, int, multicodec.Multicodec]) -> CID:
+        validate(raw_value, bytes)
+        validate(codec, Union[str, int, multicodec.Multicodec])
+
+        if isinstance(codec, str):
+            codec = multicodec.get(name=codec)
+        elif isinstance(codec, int):
+            codec = multicodec.get(code=codec)
+
+        res = requests.post(self._host + "/api/v0/dag/put",
+                params={"store-codec": codec.name, "input-codec": codec.name, "hash": self._default_hash.name},
+                files={"dummy": raw_value})
+        res.raise_for_status()
+        return CID.decode(res.json()["Cid"]["/"])
 
 
 def iter_links(o: DagCborEncodable) -> Iterator[CID]:

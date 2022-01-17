@@ -1,0 +1,9 @@
+[MESSAGES CONTROL]
+disable = no-else-return,
+          invalid-name,
+          missing-class-docstring,
+          missing-module-docstring,
+          missing-function-docstring
+
+[FORMAT]
+max-line-length=160

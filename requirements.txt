@@ -1,0 +1,2 @@
+.
+git+https://github.com/hashberg-io/multiformats.git # needed for equality comparison of CIDs during testing, might be removed once a new version (>0.1.3) is available

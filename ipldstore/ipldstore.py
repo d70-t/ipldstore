@@ -1,44 +1,61 @@
+"""
+Implementation of a MutableMapping based on IPLD data structures.
+"""
+
+from io import BufferedIOBase
 from collections.abc import MutableMapping
-from typing import Optional
+from dataclasses import dataclass
+from typing import Optional, Callable, Any, TypeVar, Union, Iterator, overload
 import json
 
-from multiformats import varint, multihash, CID
+from multiformats import CID
 import dag_cbor
-from numcodecs.compat import ensure_bytes
+from numcodecs.compat import ensure_bytes  # type: ignore
 
 from .contentstore import ContentAddressableStore, MappingCAStore
 
+
+@dataclass
 class InlineCodec:
-    def __init__(self, decoder, encoder):
-        self.decoder = decoder
-        self.encoder = encoder
+    decoder: Callable[[bytes], Any]
+    encoder: Callable[[Any], bytes]
+
+
+def json_dumps_bytes(obj: Any) -> bytes:
+    return json.dumps(obj).encode("utf-8")
+
+
+json_inline_codec = InlineCodec(json.loads, json_dumps_bytes)
 
 inline_objects = {
-    ".zarray": InlineCodec(json.loads, json.dumps),
-    ".zgroup": InlineCodec(json.loads, json.dumps),
-    ".zmetadata": InlineCodec(json.loads, json.dumps),
-    ".zattrs": InlineCodec(json.loads, json.dumps),
+    ".zarray": json_inline_codec,
+    ".zgroup": json_inline_codec,
+    ".zmetadata": json_inline_codec,
+    ".zattrs": json_inline_codec,
 }
 
 
-class IPLDStore(MutableMapping):
-    def __init__(self, castore: Optional[ContentAddressableStore] = None, sep="/"):
-        self._mapping = {}
+class IPLDStore(MutableMapping[str, bytes]):
+    def __init__(self, castore: Optional[ContentAddressableStore] = None, sep: str = "/"):
+        self._mapping: dict[str, Union[bytes, dag_cbor.encoding.EncodableType]] = {}
         self._store = castore or MappingCAStore()
         self.sep = sep
-        self.root_cid = None
-    
-    def __getitem__(self, key):
+        self.root_cid: Optional[CID] = None
+
+    def __getitem__(self, key: str) -> bytes:
         key_parts = key.split(self.sep)
         get_value = get_recursive(self._mapping, key_parts)
         try:
             inline_codec = inline_objects[key_parts[-1]]
         except KeyError:
-            return self._store.get(get_value)
+            assert isinstance(get_value, CID)
+            res = self._store.get(get_value)
+            assert isinstance(res, bytes)
+            return res
         else:
             return inline_codec.encoder(get_value)
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: str, value: bytes) -> None:
         value = ensure_bytes(value)
         key_parts = key.split(self.sep)
 
@@ -53,17 +70,17 @@ class IPLDStore(MutableMapping):
         self.root_cid = None
         set_recursive(self._mapping, key_parts, set_value)
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: str) -> None:
         key_parts = key.split(self.sep)
         del_recursive(self._mapping, key_parts)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self._mapping)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self._mapping)
 
-    def freeze(self):
+    def freeze(self) -> CID:
         """
             Store current version and return the corresponding root cid.
         """
@@ -71,48 +88,64 @@ class IPLDStore(MutableMapping):
             self.root_cid = self._store.put(self._mapping)
         return self.root_cid
 
-    def clear(self):
+    def clear(self) -> None:
         self.root_cid = None
         self._mapping = {}
 
-    def to_car(self, stream=None):
+    @overload
+    def to_car(self, stream: BufferedIOBase) -> int:
+        ...
+
+    @overload
+    def to_car(self, stream: None = None) -> bytes:
+        ...
+
+    def to_car(self, stream: Optional[BufferedIOBase] = None) -> Union[int, bytes]:
         return self._store.to_car(self.freeze(), stream)
 
-    def import_car(self, stream):
+    def import_car(self, stream: bytes) -> None:
         roots = self._store.import_car(stream)
         if len(roots) != 1:
             raise ValueError(f"CAR must have a single root, the given CAR has {len(roots)} roots!")
         self.set_root(roots[0])
 
     @classmethod
-    def from_car(cls, stream):
+    def from_car(cls, stream: bytes) -> "IPLDStore":
         instance = cls()
         instance.import_car(stream)
         return instance
 
-    def set_root(self, cid):
+    def set_root(self, cid: CID) -> None:
         if isinstance(cid, str):
             cid = CID.decode(cid)
         assert cid in self._store
         self.root_cid = cid
-        self._mapping = self._store.get(cid)
+        self._mapping = self._store.get(cid)  # type: ignore
 
 
-def set_recursive(obj, path, value):
+_T = TypeVar("_T")
+_V = TypeVar("_V")
+
+RecursiveMapping = MutableMapping[_T, Union[_V, "RecursiveMapping"]]  # type: ignore
+
+
+def set_recursive(obj: RecursiveMapping[_T, _V], path: list[_T], value: _V) -> None:
     assert len(path) >= 1
     if len(path) == 1:
         obj[path[0]] = value
     else:
-        set_recursive(obj.setdefault(path[0], {}), path[1:], value)
+        set_recursive(obj.setdefault(path[0], {}), path[1:], value)  # type: ignore
 
-def get_recursive(obj, path):
+
+def get_recursive(obj: RecursiveMapping[_T, _V], path: list[_T]) -> _V:
     assert len(path) >= 1
     if len(path) == 1:
         return obj[path[0]]
     else:
-        return get_recursive(obj[path[0]], path[1:])
+        return get_recursive(obj[path[0]], path[1:])  # type: ignore
 
-def del_recursive(obj, path):
+
+def del_recursive(obj: MutableMapping[_T, Any], path: list[_T]) -> None:
     assert len(path) >= 1
     if len(path) == 1:
         del obj[path[0]]

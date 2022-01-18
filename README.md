@@ -10,12 +10,13 @@ Store data on (local) IPFS node:
 >>> import xarray as xr
 >>> ds = xr.Dataset({"a": ("a", [1, 2, 3])})
 >>> m = ipldstore.get_ipfs_mapper()
->>> ds.to_zarr(m, encoding={"a": {"compressor": None}})
+>>> ds.to_zarr(m, encoding={"a": {"compressor": None}})   # doctest: +SKIP
 <xarray.backends.zarr.ZarrStore object at 0x...>
->>> print(m.freeze())
+>>> print(m.freeze())   # doctest: +SKIP
 bafyreibf3yn5ovxhrcwwdg4sm5sinnkwoyfx3wswghbjchz4zvwt55bhte
 
 ```
+(this example does only work if there's a local IPFS node running)
 
 Instead of storing the data directly on IPFS, it is also possible to store the data
 on a generic `MutableMapping`, which could be just a dictionary, but also some object store

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import MutableMapping, Optional, Union, overload, Iterator, MutableSet, List
+from typing import MutableMapping, Optional, Union, overload, Iterator, MutableSet, List, Tuple
 from io import BufferedIOBase, BytesIO
 
 from typing_extensions import TypeGuard
@@ -147,7 +147,7 @@ def decode_car_header(stream: BufferedIOBase) -> List[CID]:
     return roots
 
 
-def decode_raw_car_block(stream: BufferedIOBase) -> Optional[tuple[CID, bytes]]:
+def decode_raw_car_block(stream: BufferedIOBase) -> Optional[Tuple[CID, bytes]]:
     try:
         block_size = varint.decode(stream)
     except ValueError:

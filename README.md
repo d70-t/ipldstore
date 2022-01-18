@@ -38,19 +38,30 @@ bafyreidn66mk3fktszrfwayonvpq6y3agtnb5e5o22ivof5tgikbxt7k6u
 Now that we've got full control over our `backend`, we can also have a look at what's stored inside:
 
 ```python
->>> print(backend)
-{'bafkreihc4ibtvz7btvualgou5mfbgwncwshmlovmoudgyml7x6crlhcu54': b'\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00', 'bafyreidn66mk3fktszrfwayonvpq6y3agtnb5e5o22ivof5tgikbxt7k6u': b'\xa3aa\xa3a0\xd8*X%\x00\x01U\x12 \xe2\xe2\x03:\xe7\xe1\x9dh\x05\x99\xd4\xeb\n\x13Y\xa2\xb4\x8e\xc5\xba\xacu\x06l1\x7f\xbf\x85\x15\x9cT\xefg.zarray\xa8edtypec<i8eorderaCeshape\x81\x03fchunks\x81\x03gfilters\xf6jcompressor\xf6jfill_value\xf6kzarr_format\x02g.zattrs\xa1q_ARRAY_DIMENSIONS\x81aag.zattrs\xa0g.zgroup\xa1kzarr_format\x02'}
+>>> from pprint import pprint
+>>> pprint(backend, width=120)
+{'bafkreihc4ibtvz7btvualgou5mfbgwncwshmlovmoudgyml7x6crlhcu54': b'\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00'
+                                                                b'\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00',
+ 'bafyreidn66mk3fktszrfwayonvpq6y3agtnb5e5o22ivof5tgikbxt7k6u': b'\xa3aa\xa3a0\xd8*X%\x00\x01U\x12 \xe2\xe2\x03:\xe7'
+                                                                b'\xe1\x9dh\x05\x99\xd4\xeb\n\x13Y\xa2\xb4'
+                                                                b'\x8e\xc5\xba\xacu\x06l1\x7f\xbf\x85\x15\x9cT\xefg.zar'
+                                                                b'ray\xa8edtypec<i8eorderaCeshape\x81\x03fchunk'
+                                                                b's\x81\x03gfilters\xf6jcompressor\xf6jfill_value\xf6'
+                                                                b'kzarr_format\x02g.zattrs\xa1q_ARRAY_DIMENSIONS\x81aag'
+                                                                b'.zattrs\xa0g.zgroup\xa1kzarr_format\x02'}
 
 ```
 
 The store contains two objects which are keyed by their content identifier (CID).
-One are the raw bytes of our array data, the other is a combination of zarr metadata fields in DAG-CBOR encoding.
+The first one are the raw bytes of our array data, the second is a combination of zarr metadata fields in DAG-CBOR encoding.
+Note that this is unconsolidated metadata, but the store is able to inline the metadata objects, which makes them
+traversible using common IPLD mechanisms.
+
 In order to understand these parts better, we'll decode the objects a bit further:
 
 ```python
 >>> from multiformats import CID
 >>> import dag_cbor
->>> from pprint import pprint
 
 >>> def decode_block(k, v):
 ...     cid = CID.decode(k)

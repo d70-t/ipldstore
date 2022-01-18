@@ -1,0 +1,5 @@
+zarr
+pytest
+pytest-cov
+cbor2
+xarray

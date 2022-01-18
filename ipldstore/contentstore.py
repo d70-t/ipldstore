@@ -59,6 +59,9 @@ class ContentAddressableStore(ABC):
         else:
             return self.put_raw(dag_cbor.encode(value), DagCborCodec)
 
+    def normalize_cid(self, cid: CID) -> CID: # pylint: disable=no-self-use
+        return cid
+
     @overload
     def to_car(self, root: CID, stream: BufferedIOBase) -> int:
         ...
@@ -119,7 +122,7 @@ class ContentAddressableStore(ABC):
         else:
             stream = stream_or_bytes
 
-        roots = decode_car_header(stream)
+        roots = [self.normalize_cid(root) for root in decode_car_header(stream)]
 
         while (next_block := decode_raw_car_block(stream)) is not None:
             cid, data = next_block
@@ -184,11 +187,11 @@ def decode_raw_car_block(stream: BufferedIOBase) -> Optional[tuple[CID, bytes]]:
 
 class MappingCAStore(ContentAddressableStore):
     def __init__(self,
-                 mapping: Optional[MutableMapping[bytes, bytes]] = None,
+                 mapping: Optional[MutableMapping[str, bytes]] = None,
                  default_hash: Union[str, int, multicodec.Multicodec, multihash.Multihash] = "sha2-256",
                  default_base: Union[str, multibase.Multibase] = "base32",
                  ):
-        validate(mapping, Optional[MutableMapping[bytes, bytes]])
+        validate(mapping, Optional[MutableMapping[str, bytes]])
         validate(default_hash, Union[str, int, multicodec.Multicodec, multihash.Multihash])
         validate(default_base, Union[str, multibase.Multibase])
 
@@ -207,10 +210,12 @@ class MappingCAStore(ContentAddressableStore):
         else:
             self._default_base = multibase.get(default_base)
 
+    def normalize_cid(self, cid: CID) -> CID:
+        return cid.set(base=self._default_base, version=1)
+
     def get_raw(self, cid: CID) -> bytes:
         validate(cid, CID)
-        key = cid.set(base=self._default_base, version=1).digest
-        return self._mapping[key]
+        return self._mapping[str(self.normalize_cid(cid))]
 
     def put_raw(self,
                 raw_value: bytes,
@@ -220,8 +225,7 @@ class MappingCAStore(ContentAddressableStore):
 
         h = self._default_hash.digest(raw_value)
         cid = CID(self._default_base, 1, codec, h)
-        key = cid.digest
-        self._mapping[key] = raw_value
+        self._mapping[str(cid)] = raw_value
         return cid
 
 

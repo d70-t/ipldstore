@@ -75,10 +75,20 @@ class IPLDStore(MutableMapping[str, bytes]):
         del_recursive(self._mapping, key_parts)
 
     def __iter__(self) -> Iterator[str]:
-        return iter(self._mapping)
+        return self._iter_nested("", self._mapping)
+
+    def _iter_nested(self, prefix: str, mapping: dict[str, Union[bytes, dag_cbor.encoding.EncodableType]]) -> Iterator[str]:
+        for key, value in mapping.items():
+            key_parts = key.split(self.sep)
+            if key_parts[-1] in inline_objects:
+                yield prefix + key
+            elif isinstance(value, dict):
+                yield from self._iter_nested(prefix + key + self.sep, value)
+            else:
+                yield prefix + key
 
     def __len__(self) -> int:
-        return len(self._mapping)
+        return len(list(iter(self)))
 
     def freeze(self) -> CID:
         """
@@ -103,14 +113,14 @@ class IPLDStore(MutableMapping[str, bytes]):
     def to_car(self, stream: Optional[BufferedIOBase] = None) -> Union[int, bytes]:
         return self._store.to_car(self.freeze(), stream)
 
-    def import_car(self, stream: bytes) -> None:
+    def import_car(self, stream: Union[BufferedIOBase, bytes]) -> None:
         roots = self._store.import_car(stream)
         if len(roots) != 1:
             raise ValueError(f"CAR must have a single root, the given CAR has {len(roots)} roots!")
         self.set_root(roots[0])
 
     @classmethod
-    def from_car(cls, stream: bytes) -> "IPLDStore":
+    def from_car(cls, stream: Union[BufferedIOBase, bytes]) -> "IPLDStore":
         instance = cls()
         instance.import_car(stream)
         return instance

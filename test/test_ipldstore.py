@@ -18,3 +18,10 @@ def test_store_hierarchy():
     s["a/b"] = b"c"
     assert "a" in castore.get(s.freeze())
     assert s["a/b"] == b"c"
+
+def test_iterate_store_hierarchy():
+    s = IPLDStore()
+    s[".zgroup"] = b'{"test": 123}'
+    s["a/b"] = b"c"
+    s["d"] = b"e"
+    assert list(sorted(s)) == [".zgroup", "a/b", "d"]

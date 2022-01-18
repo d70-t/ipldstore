@@ -7,6 +7,8 @@ import zarr
 import numpy as np
 from multiformats import CID
 
+import pytest
+
 def test_create_array():
     castore = MappingCAStore()
     store = IPLDStore(castore)
@@ -17,18 +19,21 @@ def test_create_array():
     with open("test.car", "wb") as tc:
         store.to_car(tc)
 
-def test_move_array_between_stores_using_car():
+@pytest.mark.parametrize("use_stream", [True, False])
+def test_move_array_between_stores_using_car(use_stream):
     store1 = IPLDStore()
     z = zarr.create(store=store1, overwrite=True, shape=100, dtype='float', compressor=None)
     a = np.random.random(100)
     z[:] = a
 
-    stream = BytesIO()
-    store1.to_car(stream)
+    if use_stream:
+        transport = BytesIO()
+        store1.to_car(transport)
+        transport.seek(0)
+    else:
+        transport = store1.to_car()
 
-    stream.seek(0)
-
-    store2 = IPLDStore.from_car(stream)
+    store2 = IPLDStore.from_car(transport)
     z2 = zarr.open(store=store2)
 
-    assert np.all(z[:] == a)
+    assert np.all(z2[:] == a)

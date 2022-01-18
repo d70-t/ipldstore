@@ -17,9 +17,9 @@ bafyreibf3yn5ovxhrcwwdg4sm5sinnkwoyfx3wswghbjchz4zvwt55bhte
 
 ```
 
-Instread of storing the data directly on IPFS, it is also possible to store the data
+Instead of storing the data directly on IPFS, it is also possible to store the data
 on a generic `MutableMapping`, which could be just a dictionary, but also some object store
-or a filesystem. `MappingCAStore` does the necessary API conversions, so we wrap our
+or a file system. `MappingCAStore` does the necessary API conversions, so we wrap our
 `backend` inside.
 
 Let's try to store data in memory:
@@ -34,7 +34,7 @@ bafyreibf3yn5ovxhrcwwdg4sm5sinnkwoyfx3wswghbjchz4zvwt55bhte
 
 ```
 
-Now that we've got full control over our backend, we can also have a look at what's stored inside:
+Now that we've got full control over our `backend`, we can also have a look at what's stored inside:
 
 ````python
 >>> print(backend)
@@ -44,7 +44,7 @@ Now that we've got full control over our backend, we can also have a look at wha
 
 The store contains two objects which are keyed by their content identifier (CID).
 One are the raw bytes of our array data, the other is a combination of zarr metadata fields in DAG-CBOR encoding.
-In oder to understand these parts better, we'll decode the objects a bit further:
+In order to understand these parts better, we'll decode the objects a bit further:
 
 ```python
 >>> from multiformats import CID
@@ -98,7 +98,7 @@ CID('base32', 1, 'dag-cbor', '122025de1bd756e788ad619b92676486b556760b7dda5631c2
 So the first item are the raw bytes (we've disabled compression, so that we can observe the bytes `\x01`, `\x02` and `\x03` corresponding to the array data `[1, 2, 3]`.
 The other object is a nested dag-cbor object which can be represented as a nested dictionary. It contains all the zarr metadata files inlined as well as a link to the CID of the array data. (The `base` of the CID differs, but as the `base` is purely representational and does not identify the content, it matches the CID from above).
 
-It is also possible to transfer content via conrent archives (CAR):
+It is also possible to transfer content via content archives (CAR):
 
 ```
 >>> archive = m.to_car()
@@ -108,7 +108,7 @@ It is also possible to transfer content via conrent archives (CAR):
 ```
 
 The resulting archive is a valid [CARv1](https://ipld.io/specs/transport/car/carv1/) and can be imported to other IPLD speaking services (including IPFS).
-It can also be imported into another IPLDStore:
+It can also be imported into another `IPLDStore`:
 
 ```
 >>> new_backend = {}  # can be any MutableMapping[str, bytes]

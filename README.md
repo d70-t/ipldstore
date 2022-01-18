@@ -37,7 +37,7 @@ bafyreibf3yn5ovxhrcwwdg4sm5sinnkwoyfx3wswghbjchz4zvwt55bhte
 
 Now that we've got full control over our `backend`, we can also have a look at what's stored inside:
 
-````python
+```python
 >>> print(backend)
 {'bafkreihc4ibtvz7btvualgou5mfbgwncwshmlovmoudgyml7x6crlhcu54': b'\x01\x00\x00\x00\x00\x00\x00\x00\x02\x00\x00\x00\x00\x00\x00\x00\x03\x00\x00\x00\x00\x00\x00\x00', 'bafyreibf3yn5ovxhrcwwdg4sm5sinnkwoyfx3wswghbjchz4zvwt55bhte': b'\xa4aa\xa3a0\xd8*X%\x00\x01U\x12 \xe2\xe2\x03:\xe7\xe1\x9dh\x05\x99\xd4\xeb\n\x13Y\xa2\xb4\x8e\xc5\xba\xacu\x06l1\x7f\xbf\x85\x15\x9cT\xefg.zarray\xa8edtypec<i8eorderaCeshape\x81\x03fchunks\x81\x03gfilters\xf6jcompressor\xf6jfill_value\xf6kzarr_format\x02g.zattrs\xa1q_ARRAY_DIMENSIONS\x81aag.zattrs\xa0g.zgroup\xa1kzarr_format\x02j.zmetadata\xa2hmetadata\xa4g.zattrs\xa0g.zgroup\xa1kzarr_format\x02ia/.zarray\xa8edtypec<i8eorderaCeshape\x81\x03fchunks\x81\x03gfilters\xf6jcompressor\xf6jfill_value\xf6kzarr_format\x02ia/.zattrs\xa1q_ARRAY_DIMENSIONS\x81aax\x18zarr_consolidated_format\x01'}
 
@@ -101,7 +101,7 @@ The other object is a nested dag-cbor object which can be represented as a neste
 
 It is also possible to transfer content via content archives (CAR):
 
-```
+```python
 >>> archive = m.to_car()
 >>> type(archive), len(archive)
 (<class 'bytes'>, 560)
@@ -111,7 +111,7 @@ It is also possible to transfer content via content archives (CAR):
 The resulting archive is a valid [CARv1](https://ipld.io/specs/transport/car/carv1/) and can be imported to other IPLD speaking services (including IPFS).
 It can also be imported into another `IPLDStore`:
 
-```
+```python
 >>> new_backend = {}  # can be any MutableMapping[str, bytes]
 >>> new_m = ipldstore.IPLDStore(ipldstore.MappingCAStore(new_backend))
 >>> new_backend

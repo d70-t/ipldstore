@@ -4,6 +4,13 @@ Implementation of a MutableMapping based on IPLD data structures.
 
 from io import BufferedIOBase
 from collections.abc import MutableMapping
+import sys
+if sys.version_info >= (3, 9):
+    MutableMappingT = MutableMapping
+    MutableMappingSB = MutableMapping[str, bytes]
+else:
+    from typing import MutableMapping as MutableMappingT
+    MutableMappingSB = MutableMapping
 from dataclasses import dataclass
 from typing import Optional, Callable, Any, TypeVar, Union, Iterator, overload, List, Dict
 import json
@@ -35,7 +42,7 @@ inline_objects = {
 }
 
 
-class IPLDStore(MutableMapping[str, bytes]):
+class IPLDStore(MutableMappingSB):
     def __init__(self, castore: Optional[ContentAddressableStore] = None, sep: str = "/"):
         self._mapping: Dict[str, Union[bytes, dag_cbor.encoding.EncodableType]] = {}
         self._store = castore or MappingCAStore()
@@ -136,7 +143,7 @@ class IPLDStore(MutableMapping[str, bytes]):
 _T = TypeVar("_T")
 _V = TypeVar("_V")
 
-RecursiveMapping = MutableMapping[_T, Union[_V, "RecursiveMapping"]]  # type: ignore
+RecursiveMapping = MutableMappingT[_T, Union[_V, "RecursiveMapping"]]  # type: ignore
 
 
 def set_recursive(obj: RecursiveMapping[_T, _V], path: List[_T], value: _V) -> None:
@@ -155,7 +162,7 @@ def get_recursive(obj: RecursiveMapping[_T, _V], path: List[_T]) -> _V:
         return get_recursive(obj[path[0]], path[1:])  # type: ignore
 
 
-def del_recursive(obj: MutableMapping[_T, Any], path: List[_T]) -> None:
+def del_recursive(obj: MutableMappingT[_T, Any], path: List[_T]) -> None:
     assert len(path) >= 1
     if len(path) == 1:
         del obj[path[0]]

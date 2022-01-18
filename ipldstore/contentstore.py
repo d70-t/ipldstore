@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import MutableMapping, Optional, Union, overload, Iterator, MutableSet
+from typing import MutableMapping, Optional, Union, overload, Iterator, MutableSet, List
 from io import BufferedIOBase, BytesIO
 
 from typing_extensions import TypeGuard
@@ -20,7 +20,7 @@ DagPbCodec = multicodec.get("dag-pb")
 Sha256Hash = multihash.get("sha2-256")
 
 
-def is_cid_list(os: list[object]) -> TypeGuard[list[CID]]:
+def is_cid_list(os: List[object]) -> TypeGuard[List[CID]]:
     return all(isinstance(o, CID) for o in os)
 
 
@@ -115,7 +115,7 @@ class ContentAddressableStore(ABC):
                     bytes_written += self._to_car(child, stream, already_written)
         return bytes_written
 
-    def import_car(self, stream_or_bytes: Union[BufferedIOBase, bytes]) -> list[CID]:
+    def import_car(self, stream_or_bytes: Union[BufferedIOBase, bytes]) -> List[CID]:
         validate(stream_or_bytes, Union[BufferedIOBase, bytes])
         if isinstance(stream_or_bytes, bytes):
             stream: BufferedIOBase = BytesIO(stream_or_bytes)
@@ -131,7 +131,7 @@ class ContentAddressableStore(ABC):
         return roots
 
 
-def decode_car_header(stream: BufferedIOBase) -> list[CID]:
+def decode_car_header(stream: BufferedIOBase) -> List[CID]:
     """
     Decodes a CAR header and returns the list of contained roots.
     """

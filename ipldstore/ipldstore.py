@@ -5,7 +5,7 @@ Implementation of a MutableMapping based on IPLD data structures.
 from io import BufferedIOBase
 from collections.abc import MutableMapping
 from dataclasses import dataclass
-from typing import Optional, Callable, Any, TypeVar, Union, Iterator, overload
+from typing import Optional, Callable, Any, TypeVar, Union, Iterator, overload, List, Dict
 import json
 
 from multiformats import CID
@@ -37,7 +37,7 @@ inline_objects = {
 
 class IPLDStore(MutableMapping[str, bytes]):
     def __init__(self, castore: Optional[ContentAddressableStore] = None, sep: str = "/"):
-        self._mapping: dict[str, Union[bytes, dag_cbor.encoding.EncodableType]] = {}
+        self._mapping: Dict[str, Union[bytes, dag_cbor.encoding.EncodableType]] = {}
         self._store = castore or MappingCAStore()
         self.sep = sep
         self.root_cid: Optional[CID] = None
@@ -77,7 +77,7 @@ class IPLDStore(MutableMapping[str, bytes]):
     def __iter__(self) -> Iterator[str]:
         return self._iter_nested("", self._mapping)
 
-    def _iter_nested(self, prefix: str, mapping: dict[str, Union[bytes, dag_cbor.encoding.EncodableType]]) -> Iterator[str]:
+    def _iter_nested(self, prefix: str, mapping: Dict[str, Union[bytes, dag_cbor.encoding.EncodableType]]) -> Iterator[str]:
         for key, value in mapping.items():
             key_parts = key.split(self.sep)
             if key_parts[-1] in inline_objects:
@@ -139,7 +139,7 @@ _V = TypeVar("_V")
 RecursiveMapping = MutableMapping[_T, Union[_V, "RecursiveMapping"]]  # type: ignore
 
 
-def set_recursive(obj: RecursiveMapping[_T, _V], path: list[_T], value: _V) -> None:
+def set_recursive(obj: RecursiveMapping[_T, _V], path: List[_T], value: _V) -> None:
     assert len(path) >= 1
     if len(path) == 1:
         obj[path[0]] = value
@@ -147,7 +147,7 @@ def set_recursive(obj: RecursiveMapping[_T, _V], path: list[_T], value: _V) -> N
         set_recursive(obj.setdefault(path[0], {}), path[1:], value)  # type: ignore
 
 
-def get_recursive(obj: RecursiveMapping[_T, _V], path: list[_T]) -> _V:
+def get_recursive(obj: RecursiveMapping[_T, _V], path: List[_T]) -> _V:
     assert len(path) >= 1
     if len(path) == 1:
         return obj[path[0]]
@@ -155,7 +155,7 @@ def get_recursive(obj: RecursiveMapping[_T, _V], path: list[_T]) -> _V:
         return get_recursive(obj[path[0]], path[1:])  # type: ignore
 
 
-def del_recursive(obj: MutableMapping[_T, Any], path: list[_T]) -> None:
+def del_recursive(obj: MutableMapping[_T, Any], path: List[_T]) -> None:
     assert len(path) >= 1
     if len(path) == 1:
         del obj[path[0]]

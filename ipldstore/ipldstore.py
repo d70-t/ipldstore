@@ -14,6 +14,7 @@ import dag_cbor
 from numcodecs.compat import ensure_bytes  # type: ignore
 
 from .contentstore import ContentAddressableStore, MappingCAStore
+from .utils import StreamLike
 
 if sys.version_info >= (3, 9):
     MutableMappingT = MutableMapping
@@ -120,14 +121,14 @@ class IPLDStore(MutableMappingSB):
     def to_car(self, stream: Optional[BufferedIOBase] = None) -> Union[int, bytes]:
         return self._store.to_car(self.freeze(), stream)
 
-    def import_car(self, stream: Union[BufferedIOBase, bytes]) -> None:
+    def import_car(self, stream: StreamLike) -> None:
         roots = self._store.import_car(stream)
         if len(roots) != 1:
             raise ValueError(f"CAR must have a single root, the given CAR has {len(roots)} roots!")
         self.set_root(roots[0])
 
     @classmethod
-    def from_car(cls, stream: Union[BufferedIOBase, bytes]) -> "IPLDStore":
+    def from_car(cls, stream: StreamLike) -> "IPLDStore":
         instance = cls()
         instance.import_car(stream)
         return instance

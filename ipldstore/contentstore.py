@@ -118,7 +118,7 @@ class ContentAddressableStore(ABC):
         roots, blocks = read_car(stream_or_bytes)
         roots = [self.normalize_cid(root) for root in roots]
 
-        for cid, data in blocks:
+        for cid, data, _ in blocks:
             self.put_raw(bytes(data), cid.codec)
 
         return roots

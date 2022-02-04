@@ -19,6 +19,8 @@ def decode_car_header(stream: BufferedIOBase) -> List[CID]:
     header = dag_cbor.decode(stream.read(header_size))
     if not isinstance(header, dict):
         raise ValueError("no valid CAR header found")
+    if header["version"] != 1:
+        raise ValueError("CAR is not version 1")
     roots = header["roots"]
     if not isinstance(roots, list):
         raise ValueError("CAR header doesn't contain roots")

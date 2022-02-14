@@ -2,14 +2,16 @@
 CAR handling functions.
 """
 
-from io import BufferedIOBase
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union, Iterator, BinaryIO
 import dataclasses
 
 import dag_cbor
 from multiformats import CID, varint, multicodec, multihash
 
 from .utils import is_cid_list, StreamLike, ensure_stream
+
+DagPbCodec = multicodec.get("dag-pb")
+Sha256Hash = multihash.get("sha2-256")
 
 @dataclasses.dataclass
 class CARBlockLocation:
@@ -19,23 +21,23 @@ class CARBlockLocation:
     offset: int = 0
 
     @property
-    def cid_offset(self):
+    def cid_offset(self) -> int:
         return self.offset + self.varint_size
 
     @property
-    def payload_offset(self):
+    def payload_offset(self) -> int:
         return self.offset + self.varint_size + self.cid_size
 
     @property
-    def size(self):
+    def size(self) -> int:
         return self.varint_size + self.cid_size + self.payload_size
 
 
-def decode_car_header(stream: BufferedIOBase) -> List[CID]:
+def decode_car_header(stream: BinaryIO) -> Tuple[List[CID], int]:
     """
     Decodes a CAR header and returns the list of contained roots.
     """
-    header_size, visize, _ = varint.decode_raw(stream)
+    header_size, visize, _ = varint.decode_raw(stream)  # type: ignore [call-overload] # varint uses BufferedIOBase
     header = dag_cbor.decode(stream.read(header_size))
     if not isinstance(header, dict):
         raise ValueError("no valid CAR header found")
@@ -49,9 +51,9 @@ def decode_car_header(stream: BufferedIOBase) -> List[CID]:
     return roots, visize + header_size
 
 
-def decode_raw_car_block(stream: BufferedIOBase) -> Optional[Tuple[CID, bytes]]:
+def decode_raw_car_block(stream: BinaryIO) -> Optional[Tuple[CID, bytes, CARBlockLocation]]:
     try:
-        block_size, visize, _ = varint.decode_raw(stream)
+        block_size, visize, _ = varint.decode_raw(stream)  # type: ignore [call-overload] # varint uses BufferedIOBase
     except ValueError:
         # stream has likely been consumed entirely
         return None
@@ -87,7 +89,7 @@ def decode_raw_car_block(stream: BufferedIOBase) -> Optional[Tuple[CID, bytes]]:
     return cid, bytes(data), CARBlockLocation(visize, block_size - len(data), len(data))
 
 
-def read_car(stream_or_bytes: StreamLike):
+def read_car(stream_or_bytes: StreamLike) -> Tuple[List[CID], Iterator[Tuple[CID, bytes, CARBlockLocation]]]:
     """
     Reads a CAR.
 
@@ -105,7 +107,7 @@ def read_car(stream_or_bytes: StreamLike):
     """
     stream = ensure_stream(stream_or_bytes)
     roots, header_size = decode_car_header(stream)
-    def blocks():
+    def blocks() -> Iterator[Tuple[CID, bytes, CARBlockLocation]]:
         offset = header_size
         while (next_block := decode_raw_car_block(stream)) is not None:
             cid, data, sizes = next_block

@@ -2,17 +2,15 @@
 Some utilities.
 """
 
-from io import BufferedIOBase, BytesIO
-from typing import List, Union
+from io import BytesIO
+from typing import List, Union, BinaryIO
 
 from multiformats import CID
-from typing_validation import validate
 from typing_extensions import TypeGuard
 
-StreamLike = Union[BufferedIOBase, bytes]
+StreamLike = Union[BinaryIO, bytes]
 
-def ensure_stream(stream_or_bytes: StreamLike) -> BufferedIOBase:
-    validate(stream_or_bytes, StreamLike)
+def ensure_stream(stream_or_bytes: StreamLike) -> BinaryIO:
     if isinstance(stream_or_bytes, bytes):
         return BytesIO(stream_or_bytes)
     else:

@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import MutableMapping, Optional, Union, overload, Iterator, MutableSet, List, Tuple
+from typing import MutableMapping, Optional, Union, overload, Iterator, MutableSet, List
 from io import BufferedIOBase, BytesIO
-
-from typing_extensions import TypeGuard
 
 from multiformats import CID, multicodec, multibase, multihash, varint
 import dag_cbor
@@ -19,8 +17,6 @@ ValueType = Union[bytes, DagCborEncodable]
 
 RawCodec = multicodec.get("raw")
 DagCborCodec = multicodec.get("dag-cbor")
-DagPbCodec = multicodec.get("dag-pb")
-Sha256Hash = multihash.get("sha2-256")
 
 
 class ContentAddressableStore(ABC):
@@ -58,7 +54,7 @@ class ContentAddressableStore(ABC):
         else:
             return self.put_raw(dag_cbor.encode(value), DagCborCodec)
 
-    def normalize_cid(self, cid: CID) -> CID: # pylint: disable=no-self-use
+    def normalize_cid(self, cid: CID) -> CID:  # pylint: disable=no-self-use
         return cid
 
     @overload

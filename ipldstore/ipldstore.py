@@ -5,12 +5,6 @@ Implementation of a MutableMapping based on IPLD data structures.
 from io import BufferedIOBase
 from collections.abc import MutableMapping
 import sys
-if sys.version_info >= (3, 9):
-    MutableMappingT = MutableMapping
-    MutableMappingSB = MutableMapping[str, bytes]
-else:
-    from typing import MutableMapping as MutableMappingT
-    MutableMappingSB = MutableMapping
 from dataclasses import dataclass
 from typing import Optional, Callable, Any, TypeVar, Union, Iterator, overload, List, Dict
 import json
@@ -21,6 +15,12 @@ from numcodecs.compat import ensure_bytes  # type: ignore
 
 from .contentstore import ContentAddressableStore, MappingCAStore
 
+if sys.version_info >= (3, 9):
+    MutableMappingT = MutableMapping
+    MutableMappingSB = MutableMapping[str, bytes]
+else:
+    from typing import MutableMapping as MutableMappingT
+    MutableMappingSB = MutableMapping
 
 @dataclass
 class InlineCodec:

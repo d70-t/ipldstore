@@ -3,3 +3,5 @@ pytest
 pytest-cov
 cbor2
 xarray
+fsspec
+jinja2

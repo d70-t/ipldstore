@@ -1,8 +1,6 @@
 from abc import ABC, abstractmethod
-from typing import MutableMapping, Optional, Union, overload, Iterator, MutableSet, List, Tuple
+from typing import MutableMapping, Optional, Union, overload, Iterator, MutableSet, List
 from io import BufferedIOBase, BytesIO
-
-from typing_extensions import TypeGuard
 
 from multiformats import CID, multicodec, multibase, multihash, varint
 import dag_cbor
@@ -11,17 +9,14 @@ from typing_validation import validate
 
 import requests
 
+from .car import read_car
+from .utils import StreamLike
+
 
 ValueType = Union[bytes, DagCborEncodable]
 
 RawCodec = multicodec.get("raw")
 DagCborCodec = multicodec.get("dag-cbor")
-DagPbCodec = multicodec.get("dag-pb")
-Sha256Hash = multihash.get("sha2-256")
-
-
-def is_cid_list(os: List[object]) -> TypeGuard[List[CID]]:
-    return all(isinstance(o, CID) for o in os)
 
 
 class ContentAddressableStore(ABC):
@@ -59,7 +54,7 @@ class ContentAddressableStore(ABC):
         else:
             return self.put_raw(dag_cbor.encode(value), DagCborCodec)
 
-    def normalize_cid(self, cid: CID) -> CID: # pylint: disable=no-self-use
+    def normalize_cid(self, cid: CID) -> CID:  # pylint: disable=no-self-use
         return cid
 
     @overload
@@ -115,74 +110,14 @@ class ContentAddressableStore(ABC):
                     bytes_written += self._to_car(child, stream, already_written)
         return bytes_written
 
-    def import_car(self, stream_or_bytes: Union[BufferedIOBase, bytes]) -> List[CID]:
-        validate(stream_or_bytes, Union[BufferedIOBase, bytes])
-        if isinstance(stream_or_bytes, bytes):
-            stream: BufferedIOBase = BytesIO(stream_or_bytes)
-        else:
-            stream = stream_or_bytes
+    def import_car(self, stream_or_bytes: StreamLike) -> List[CID]:
+        roots, blocks = read_car(stream_or_bytes)
+        roots = [self.normalize_cid(root) for root in roots]
 
-        roots = [self.normalize_cid(root) for root in decode_car_header(stream)]
-
-        while (next_block := decode_raw_car_block(stream)) is not None:
-            cid, data = next_block
+        for cid, data, _ in blocks:
             self.put_raw(bytes(data), cid.codec)
 
         return roots
-
-
-def decode_car_header(stream: BufferedIOBase) -> List[CID]:
-    """
-    Decodes a CAR header and returns the list of contained roots.
-    """
-    header_size = varint.decode(stream)
-    header = dag_cbor.decode(stream.read(header_size))
-    if not isinstance(header, dict):
-        raise ValueError("no valid CAR header found")
-    roots = header["roots"]
-    if not isinstance(roots, list):
-        raise ValueError("CAR header doesn't contain roots")
-    if not is_cid_list(roots):
-        raise ValueError("CAR roots do not only contain CIDs")
-    return roots
-
-
-def decode_raw_car_block(stream: BufferedIOBase) -> Optional[Tuple[CID, bytes]]:
-    try:
-        block_size = varint.decode(stream)
-    except ValueError:
-        # stream has likely been consumed entirely
-        return None
-
-    data = stream.read(block_size)
-    # as the size of the CID is variable but not explicitly given in
-    # the CAR format, we need to partially decode each CID to determine
-    # its size and the location of the payload data
-    if data[0] == 0x12 and data[1] == 0x20:
-        # this is CIDv0
-        cid_version = 0
-        default_base = "base58btc"
-        cid_codec: Union[int, multicodec.Multicodec] = DagPbCodec
-        hash_codec: Union[int, multihash.Multihash] = Sha256Hash
-        cid_digest = data[2:34]
-        data = data[34:]
-    else:
-        # this is CIDv1(+)
-        cid_version, _, data = varint.decode_raw(data)
-        if cid_version != 1:
-            raise ValueError(f"CIDv{cid_version} is currently not supported")
-        default_base = "base32"
-        cid_codec, _, data = multicodec.unwrap_raw(data)
-        hash_codec, _, data = varint.decode_raw(data)
-        digest_size, _, data = varint.decode_raw(data)
-        cid_digest = data[:digest_size]
-        data = data[digest_size:]
-    cid = CID(default_base, cid_version, cid_codec, (hash_codec, cid_digest))
-
-    if not cid.hashfun.digest(data) == cid.digest:
-        raise ValueError(f"CAR is corrupted. Entry '{cid}' could not be verified")
-
-    return cid, bytes(data)
 
 
 class MappingCAStore(ContentAddressableStore):

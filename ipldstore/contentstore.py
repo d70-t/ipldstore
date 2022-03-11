@@ -11,12 +11,14 @@ import requests
 
 from .car import read_car
 from .utils import StreamLike
+from .unixfsv1 import PBNode
 
 
 ValueType = Union[bytes, DagCborEncodable]
 
 RawCodec = multicodec.get("raw")
 DagCborCodec = multicodec.get("dag-cbor")
+DagPbCodec = multicodec.get("dag-pb")
 
 
 class ContentAddressableStore(ABC):
@@ -107,6 +109,11 @@ class ContentAddressableStore(ABC):
             if root.codec == DagCborCodec:
                 value = dag_cbor.decode(data)
                 for child in iter_links(value):
+                    bytes_written += self._to_car(child, stream, already_written)
+            elif root.codec == DagPbCodec:
+                value = PBNode.loads(data)
+                for link in value.Links:
+                    child = CID.decode(link.Hash)
                     bytes_written += self._to_car(child, stream, already_written)
         return bytes_written
 

@@ -35,7 +35,7 @@ Note we use a different hash below to show a more typical N-Dimensional dataset.
 >>> ipld_mapper = ipldstore.get_ipfs_mapper()
 >>> cid_obj = CID.decode("bafyreidjxhcilm5r227in4tvrjujawad4n7pydxk543ez53ttx6jieilc4")
 >>> cid_obj
-CID('base32', 1, 'dag-cbor', '12206df798ad955396625b030e6d5f0f636034da1e93aed6915717b332141bcfeaf5')
+CID('base32', 1, 'dag-cbor', '122069b9c485b3b1d6be86f2758a68905803e37efc0eeaef364cf7739dfc94110b17')
 >>> ipld_mapper.set_root(cid_obj)
 >>> z = xr.open_zarr(ipld_mapper, consolidated=False)
 >>> z

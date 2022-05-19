@@ -36,9 +36,9 @@ Note we use a different hash below to show a more typical N-Dimensional dataset.
 >>> cid_obj = CID.decode("bafyreidjxhcilm5r227in4tvrjujawad4n7pydxk543ez53ttx6jieilc4")
 >>> cid_obj
 CID('base32', 1, 'dag-cbor', '122069b9c485b3b1d6be86f2758a68905803e37efc0eeaef364cf7739dfc94110b17')
->>> ipld_mapper.set_root(cid_obj)
->>> z = xr.open_zarr(ipld_mapper, consolidated=False)
->>> z
+>>> ipld_mapper.set_root(cid_obj)  # doctest: +SKIP
+>>> z = xr.open_zarr(ipld_mapper, consolidated=False)  # doctest: +SKIP
+>>> z  # doctest: +SKIP
 <xarray.Dataset>
 Dimensions:     (latitude: 721, longitude: 1440, valid_time: 8760)
 Coordinates:
@@ -49,6 +49,7 @@ Data variables:
     tmax        (time, longitude, latitude) float32 dask.array<chunksize=(2190, 1440, 4), meta=np.ndarray>
 
 ```
+(this example does only work if there's a local IPFS node running and is able to find the referenced root)
 
 We're now able to query, analyze, and otherwise manipulate the Zarr just like a normal Xarray Dataset.
 
